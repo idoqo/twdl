@@ -4,6 +4,7 @@ import tweepy
 import config
 import pprint
 import argparse
+import sys
 
 try:
     from urllib.request import urlretrieve
@@ -19,15 +20,15 @@ api = tweepy.API(auth)
 def get_media_url(tweet_id):
     status = api.get_status(tweet_id)
 
-    ent = status._json['extended_entities']
-    #dsp_url = ent[0]
-    #info = dsp_url['video_info']
-    #variant = info.variants[-1]
-    #pprint.pprint(variant)
-    media_obj = ent['media']
-    variants = media_obj[0]['video_info']['variants']
-    #default variant to the last option
-    return variants[-1]['url']
+    if 'extended_entities' not in status._json:
+        print('Tweet does not contain a video file')
+        sys.exit(-1)
+    else:
+        ent = status._json['extended_entities']
+        media_obj = ent['media']
+        variants = media_obj[0]['video_info']['variants']
+        #default variant to the last option
+        return variants[-1]['url']
 
 def download(url, filename=None):
     if filename is None:
@@ -41,10 +42,15 @@ if __name__ == "__main__":
         '--url', dest='url', action='store',
         help='URL of tweet to extract media from'
         )
+    parser.add_argument(
+        '--filename', dest='filename', action='store',
+        help='Filename to save file as'
+    )
+
     args = parser.parse_args()
     if args.url is not None:
         tweet_id = args.url.rsplit('/', 1)[-1]
         url = get_media_url(tweet_id)
-        download(url)
+        download(url, filename=args.filename)
     else:
         print("URL parameter is required.")
