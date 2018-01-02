@@ -3,6 +3,8 @@
 import tweepy
 import config
 import pprint
+import argparse
+
 try:
     from urllib.request import urlretrieve
 except ImportError:
@@ -14,32 +16,35 @@ secret = config.twitter['consumer_secret']
 auth = tweepy.OAuthHandler(key, secret);
 api = tweepy.API(auth)
 
-status = api.get_status(947444826374639617)
+def get_media_url(tweet_id):
+    status = api.get_status(tweet_id)
 
-def got_media(json_obj):
-    return 'extended_entities' in json_obj
+    ent = status._json['extended_entities']
+    #dsp_url = ent[0]
+    #info = dsp_url['video_info']
+    #variant = info.variants[-1]
+    #pprint.pprint(variant)
+    media_obj = ent['media']
+    variants = media_obj[0]['video_info']['variants']
+    #default variant to the last option
+    return variants[-1]['url']
 
-def got_video(entities):
-    disp = entities[0]
-    if 'video_info' in disp:
-        return True
+def download(url, filename=None):
+    if filename is None:
+        filename = url.rsplit('/', 1)[-1]
+    urlretrieve(url, filename)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--url', dest='url', action='store',
+        help='URL of tweet to extract media from'
+        )
+    args = parser.parse_args()
+    if args.url is not None:
+        tweet_id = args.url.rsplit('/', 1)[-1]
+        url = get_media_url(tweet_id)
+        download(url)
     else:
-        return False
-
-def get_video_url(entities):
-    disp = entities[0]
-    info = disp['video_info']
-    preferred_variant = info.variants[-1]
-    return preferred_variant
-
-ext_entities = status._json['extended_entities']
-
-if got_video(ext_entities):
-    pprint.pprint(get_video_url(ext_entities))
-else:
-    media_obj = ext_entities['media']
-    display_url = media_obj[0]
-    media_url = display_url['media_url_https']
-    print("Got media url: %s\n", media_url)
-    urlretrieve(media_url, 'file.jpg')
-
+        print("URL parameter is required.")
